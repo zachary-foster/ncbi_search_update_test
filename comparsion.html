@@ -60,12 +60,12 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 
 <div id="updated-code" class="section level3">
 <h3>Updated code:</h3>
-<pre class="r"><code>#' Search for gene sequences available for a species from NCBI.
+<pre class="r"><code>#' Search for gene sequences available for taxa from NCBI.
 #'
 #' @import XML httr stringr data.table
 #' @template ncbi
-#' @param id (character) Taxonomic id to search for. Not compatible with argument \code{taxa}.
-#' @param limit Number of sequences to search for and return. Max of 10,000.
+#' @param id (\code{character}) Taxonomic id to search for. Not compatible with argument \code{taxa}.
+#' @param limit (\code{numeric}) Number of sequences to search for and return. Max of 10,000.
 #'    If you search for 6000 records, and only 5000 are found, you will of course
 #'    only get 5000 back.
 #' @param entrez_query (\code{character}; length 1) An Entrez-format query to filter results with.
@@ -120,7 +120,7 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
   # Function to search for sequences with esearch --------------------------------------------------
   search_for_sequences &lt;- function(id) {
     if (is.na(id)) return(NULL)
-    # Contruct search query  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+    # Construct search query  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
     query_term &lt;- paste0(&quot;xXarbitraryXx[porgn:__txid&quot;, id, &quot;] AND &quot;, seqrange, &quot; [SLEN]&quot;)
     if (!is.null(entrez_query)) query_term &lt;- paste(query_term, entrez_query, sep = &quot; AND &quot;)
     query &lt;- list(db = &quot;nuccore&quot;, retmax = limit, term = query_term)
@@ -135,7 +135,7 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
       return(xpathSApply(esearch_result, &quot;//IdList//Id&quot;, xmlValue)) # a list of sequence ids
     }
   }
-
+  
   # Function to parse results from http query ------------------------------------------------------
   parseres &lt;- function(x){
     outsum &lt;- xpathApply(content(x, as=&quot;parsed&quot;), &quot;//eSummaryResult&quot;)[[1]]
@@ -143,8 +143,9 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
     predicted &lt;- as.character(sapply(getNodeSet(outsum, &quot;//Item&quot;), xmlValue)[str_detect(names, &quot;Caption&quot;)]) #  get access numbers
     has_access_prefix &lt;- grepl(&quot;_&quot;, predicted)
     access_prefix &lt;- unlist(Map(function(x, y) ifelse(x, strsplit(y, &quot;_&quot;)[[1]][[1]], NA),
-                         has_access_prefix, predicted))
+                                has_access_prefix, predicted))
     predicted[has_access_prefix] &lt;- vapply(strsplit(predicted[has_access_prefix], &quot;_&quot;), `[[`, character(1), 2)
+
     length_ &lt;- as.numeric(sapply(getNodeSet(outsum, &quot;//Item&quot;), xmlValue)[str_detect(names, &quot;Length&quot;)]) # gets seq lengths
     gis &lt;- as.numeric(sapply(getNodeSet(outsum, &quot;//Item&quot;), xmlValue)[str_detect(names, &quot;Gi&quot;)]) # gets GI numbers
     spnames &lt;- sapply(getNodeSet(outsum, &quot;//Item&quot;), xmlValue)[str_detect(names, &quot;Title&quot;)] # gets seq lengths # get spp names
@@ -228,11 +229,11 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
     names(df) &lt;- c(&quot;taxon&quot;,&quot;length&quot;,&quot;gene_desc&quot;,&quot;acc_no&quot;,&quot;gi_no&quot;)
     return(df)
   }
- 
+  
   # Constants --------------------------------------------------------------------------------------
   url_esearch &lt;- &quot;http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi&quot;
   url_esummary &lt;- &quot;http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi&quot;
-
+  
   # Argument validation ----------------------------------------------------------------------------
   if (sum(c(is.null(taxa), is.null(id))) != 1) {
     stop(&quot;Either taxa or id must be specified, but not both&quot;)
@@ -247,7 +248,7 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
     class(id) &lt;- &quot;uid&quot;
     names(id) &lt;- id
   }
-
+  
   # look up sequences for taxa ids ----------------------------------------------------------------- 
   foo_safe &lt;- plyr::failwith(NULL, foo)
   if (length(id) == 1) {
@@ -256,6 +257,7 @@ ncbi_search2 &lt;- function(taxa = NULL, id = NULL, seqrange=&quot;1:3000&quot;,
     lapply(id, foo_safe)
   }
 }
+
 library(taxize)</code></pre>
 <pre><code>## 
 ## 
@@ -323,11 +325,11 @@ x &lt;- ncbi_search(taxa = query, limit = 50)</code></pre>
 ##   ..$ acc_no   : chr [1:50] &quot;KM061708&quot; &quot;KM061706&quot; &quot;KM061705&quot; &quot;KM061704&quot; ...
 ##   ..$ gi_no    : num [1:50] 6.86e+08 6.86e+08 6.86e+08 6.86e+08 6.86e+08 ...
 ##  $ :'data.frame':    50 obs. of  5 variables:
-##   ..$ taxon    : chr [1:50] &quot;Phytophthora humicola&quot; &quot;Phytophthora multivora&quot; &quot;Phytophthora multivora&quot; &quot;Phytophthora citrophthora&quot; ...
-##   ..$ length   : num [1:50] 899 813 860 840 833 846 874 875 972 782 ...
-##   ..$ gene_desc: chr [1:50] &quot;voucher ABDN505 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal &quot;| __truncated__ &quot;isolate 6 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ &quot;isolate 5 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ &quot;isolate 4 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ ...
-##   ..$ acc_no   : chr [1:50] &quot;KM061711&quot; &quot;JQ809322&quot; &quot;JQ809321&quot; &quot;JQ809320&quot; ...
-##   ..$ gi_no    : num [1:50] 6.86e+08 3.88e+08 3.88e+08 3.88e+08 3.88e+08 ...</code></pre>
+##   ..$ taxon    : chr [1:50] &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora taxon&quot; ...
+##   ..$ length   : num [1:50] 792 792 792 795 795 793 801 899 813 860 ...
+##   ..$ gene_desc: chr [1:50] &quot;isolate P531.11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;isolate P578.12 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;isolate P450.11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;Pgchlamydo isolate ES2M11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and inte&quot;| __truncated__ ...
+##   ..$ acc_no   : chr [1:50] &quot;KJ567083&quot; &quot;KJ567082&quot; &quot;KJ567081&quot; &quot;KJ396776&quot; ...
+##   ..$ gi_no    : num [1:50] 6.63e+08 6.63e+08 6.63e+08 5.83e+08 5.83e+08 ...</code></pre>
 <pre class="r"><code>y &lt;- ncbi_search2(taxa = query, limit = 50)</code></pre>
 <pre><code>## 
 ## Retrieving data for taxon 'pythium'
@@ -352,17 +354,17 @@ x &lt;- ncbi_search(taxa = query, limit = 50)</code></pre>
 ##   ..$ acc_no   : chr [1:50] &quot;KM061708&quot; &quot;KM061706&quot; &quot;KM061705&quot; &quot;KM061704&quot; ...
 ##   ..$ gi_no    : num [1:50] 6.86e+08 6.86e+08 6.86e+08 6.86e+08 6.86e+08 ...
 ##  $ phytophthora:'data.frame':    50 obs. of  5 variables:
-##   ..$ taxon    : chr [1:50] &quot;Phytophthora humicola&quot; &quot;Phytophthora multivora&quot; &quot;Phytophthora multivora&quot; &quot;Phytophthora citrophthora&quot; ...
-##   ..$ length   : num [1:50] 899 813 860 840 833 846 874 875 972 782 ...
-##   ..$ gene_desc: chr [1:50] &quot;voucher ABDN505 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal &quot;| __truncated__ &quot;isolate 6 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ &quot;isolate 5 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ &quot;isolate 4 18S ribosomal RNA gene, partial sequence; internal transcribed spacer 1, 5.8S ribosomal RNA gene, and internal transc&quot;| __truncated__ ...
-##   ..$ acc_no   : chr [1:50] &quot;KM061711&quot; &quot;JQ809322&quot; &quot;JQ809321&quot; &quot;JQ809320&quot; ...
-##   ..$ gi_no    : num [1:50] 6.86e+08 3.88e+08 3.88e+08 3.88e+08 3.88e+08 ...</code></pre>
+##   ..$ taxon    : chr [1:50] &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora hedraiandra&quot; &quot;Phytophthora taxon&quot; ...
+##   ..$ length   : num [1:50] 792 792 792 795 795 793 801 899 813 860 ...
+##   ..$ gene_desc: chr [1:50] &quot;isolate P531.11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;isolate P578.12 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;isolate P450.11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and internal trans&quot;| __truncated__ &quot;Pgchlamydo isolate ES2M11 internal transcribed spacer 1, partial sequence; 5.8S ribosomal RNA gene, complete sequence; and inte&quot;| __truncated__ ...
+##   ..$ acc_no   : chr [1:50] &quot;KJ567083&quot; &quot;KJ567082&quot; &quot;KJ567081&quot; &quot;KJ396776&quot; ...
+##   ..$ gi_no    : num [1:50] 6.63e+08 6.63e+08 6.63e+08 5.83e+08 5.83e+08 ...</code></pre>
 <pre class="r"><code>all.equal(x, y)</code></pre>
 <pre><code>## [1] &quot;names for current but not for target&quot;</code></pre>
 </div>
 <div id="no-results" class="section level4">
 <h4>No results</h4>
-<p>The two functions differ in how they handle no results or invalid taxon names. ncbi_search2 returns a 0-row dataframe if no sequences are found. This allows for the results of sucessful and unsucessful searches to be <code>rbind</code>ed together without further modifications.</p>
+<p>The two functions differ in how they handle no results or invalid taxon names. ncbi_search2 returns a 0-row dataframe if no sequences are found. This allows for the results of successful and unsuccessful searches to be <code>rbind</code>ed together without further modifications.</p>
 <pre class="r"><code>query &lt;- c(&quot;pythium&quot;, &quot;this_is_not_a_valid_taxon&quot;, &quot;phytophthora&quot;)
 
 x &lt;- do.call(rbind, ncbi_search(taxa = query, limit = 3))</code></pre>
@@ -385,9 +387,9 @@ x &lt;- do.call(rbind, ncbi_search(taxa = query, limit = 3))</code></pre>
 ## 2        Pythium dissotocum    861 KM061706 686483806
 ## 3        Pythium dissotocum    871 KM061705 686483805
 ## 4 this_is_not_a_valid_taxon     NA     &lt;NA&gt;        NA
-## 5     Phytophthora humicola    899 KM061711 686483811
-## 6    Phytophthora multivora    813 JQ809322 388270614
-## 7    Phytophthora multivora    860 JQ809321 388270613</code></pre>
+## 5  Phytophthora hedraiandra    792 KJ567083 662720654
+## 6  Phytophthora hedraiandra    792 KJ567082 662720653
+## 7  Phytophthora hedraiandra    792 KJ567081 662720652</code></pre>
 <pre class="r"><code>y &lt;- do.call(rbind, ncbi_search2(taxa = query, limit = 3))</code></pre>
 <pre><code>## 
 ## Retrieving data for taxon 'pythium'
@@ -411,13 +413,13 @@ x &lt;- do.call(rbind, ncbi_search(taxa = query, limit = 3))</code></pre>
 ## ...retrieving available genes and their lengths...
 ## ...done.</code></pre>
 <pre class="r"><code>y[, -3]</code></pre>
-<pre><code>##                                 taxon length   acc_no     gi_no
-## pythium.1          Pythium dissotocum    514 KM061708 686483808
-## pythium.2          Pythium dissotocum    861 KM061706 686483806
-## pythium.3          Pythium dissotocum    871 KM061705 686483805
-## phytophthora.1  Phytophthora humicola    899 KM061711 686483811
-## phytophthora.2 Phytophthora multivora    813 JQ809322 388270614
-## phytophthora.3 Phytophthora multivora    860 JQ809321 388270613</code></pre>
+<pre><code>##                                   taxon length   acc_no     gi_no
+## pythium.1            Pythium dissotocum    514 KM061708 686483808
+## pythium.2            Pythium dissotocum    861 KM061706 686483806
+## pythium.3            Pythium dissotocum    871 KM061705 686483805
+## phytophthora.1 Phytophthora hedraiandra    792 KJ567083 662720654
+## phytophthora.2 Phytophthora hedraiandra    792 KJ567082 662720653
+## phytophthora.3 Phytophthora hedraiandra    792 KJ567081 662720652</code></pre>
 <pre class="r"><code>all.equal(x[-4,], y[,])</code></pre>
 <pre><code>## [1] &quot;Attributes: &lt; Component \&quot;row.names\&quot;: Modes: numeric, character &gt;&quot;              
 ## [2] &quot;Attributes: &lt; Component \&quot;row.names\&quot;: target is numeric, current is character &gt;&quot;</code></pre>
@@ -426,38 +428,7 @@ x &lt;- do.call(rbind, ncbi_search(taxa = query, limit = 3))</code></pre>
 <h4>By taxon id</h4>
 <p>The <code>id</code> option can now accept numerical vectors, since ncbi taxonomy uids are always integers as far as I can tell. It works the same besides that.</p>
 <pre class="r"><code>query &lt;- c(&quot;pythium&quot;, &quot;phytophthora&quot;)
-x &lt;- ncbi_search(id = as.character(1:3), limit = 3)</code></pre>
-<pre><code>## Working on 1...
-## ...retrieving sequence IDs...
-## no sequences for 1
-## Working on 2...
-## ...retrieving sequence IDs...
-## ...retrieving available genes and their lengths...
-## ...done.
-## Working on 3...
-## ...retrieving sequence IDs...
-## no sequences for 3</code></pre>
-<pre class="r"><code>x</code></pre>
-<pre><code>## [[1]]
-## NULL
-## 
-## [[2]]
-##                     taxon length
-## 1 Halomonas xinjiangensis      9
-## 2 Halomonas xinjiangensis   1866
-## 3 Halomonas xinjiangensis   1837
-##                                                  gene_desc       acc_no
-## 1 strain TRM 0175, whole genome shotgun sequencing project JPZL00000000
-## 2 strain TRM 0175 Scaffold7, whole genome shotgun sequence JPZL01000007
-## 3 strain TRM 0175 Scaffold8, whole genome shotgun sequence JPZL01000008
-##       gi_no
-## 1 691189034
-## 2 691189027
-## 3 691189026
-## 
-## [[3]]
-## NULL</code></pre>
-<pre class="r"><code>y &lt;- ncbi_search2(id = 1:3, limit = 3)</code></pre>
+x &lt;- ncbi_search2(id = 1:3, limit = 3)</code></pre>
 <pre><code>## Working on ...
 ## ...retrieving sequence IDs...
 ## no sequences found
@@ -468,32 +439,28 @@ x &lt;- ncbi_search(id = as.character(1:3), limit = 3)</code></pre>
 ## Working on ...
 ## ...retrieving sequence IDs...
 ## no sequences found</code></pre>
-<pre class="r"><code>y</code></pre>
+<pre class="r"><code>x</code></pre>
 <pre><code>## $`1`
 ## [1] taxon     length    gene_desc acc_no    gi_no    
 ## &lt;0 rows&gt; (or 0-length row.names)
 ## 
 ## $`2`
-##                     taxon length
-## 1 Halomonas xinjiangensis      9
-## 2 Halomonas xinjiangensis   1866
-## 3 Halomonas xinjiangensis   1837
-##                                                  gene_desc       acc_no
-## 1 strain TRM 0175, whole genome shotgun sequencing project JPZL00000000
-## 2 strain TRM 0175 Scaffold7, whole genome shotgun sequence JPZL01000007
-## 3 strain TRM 0175 Scaffold8, whole genome shotgun sequence JPZL01000008
-##       gi_no
-## 1 691189034
-## 2 691189027
-## 3 691189026
+##                    taxon length
+## 1 Pseudomonas aeruginosa   1472
+## 2 Pseudomonas aeruginosa   3000
+## 3 Pseudomonas aeruginosa   3000
+##                                                      gene_desc
+## 1   strain P2-L230/95, whole genome shotgun sequencing project
+## 2 strain P2-L230/95 contig00751, whole genome shotgun sequence
+## 3 strain P2-L230/95 contig00753, whole genome shotgun sequence
+##         acc_no     gi_no
+## 1 JMBR00000000 692163019
+## 2 JMBR01000751 692156833
+## 3 JMBR01000753 692156828
 ## 
 ## $`3`
 ## [1] taxon     length    gene_desc acc_no    gi_no    
 ## &lt;0 rows&gt; (or 0-length row.names)</code></pre>
-<pre class="r"><code>all.equal(x, y)</code></pre>
-<pre><code>## [1] &quot;names for current but not for target&quot;              
-## [2] &quot;Component 1: target is NULL, current is data.frame&quot;
-## [3] &quot;Component 3: target is NULL, current is data.frame&quot;</code></pre>
 </div>
 </div>
 <div id="new-functionality" class="section level3">
@@ -527,7 +494,7 @@ x &lt;- ncbi_search(taxa = query, limit = 300)</code></pre>
 ## ...retrieving available genes and their lengths...
 ## ...done.</code></pre>
 <pre class="r"><code>nrow(x)</code></pre>
-<pre><code>## [1] 230</code></pre>
+<pre><code>## [1] 237</code></pre>
 <pre class="r"><code>y &lt;- ncbi_search2(taxa = query, limit = 300)</code></pre>
 <pre><code>## 
 ## Retrieving data for taxon 'phytophthora'
@@ -537,9 +504,7 @@ x &lt;- ncbi_search(taxa = query, limit = 300)</code></pre>
 ## ...retrieving available genes and their lengths...
 ## ...done.</code></pre>
 <pre class="r"><code>nrow(y)</code></pre>
-<pre><code>## [1] 230</code></pre>
-<pre class="r"><code>all.equal(x, y)</code></pre>
-<pre><code>## [1] &quot;Component \&quot;acc_no\&quot;: 155 string mismatches&quot;</code></pre>
+<pre><code>## [1] 237</code></pre>
 <pre class="r"><code>z &lt;- ncbi_search2(taxa = query, limit = 300, hypothetical = TRUE)</code></pre>
 <pre><code>## 
 ## Retrieving data for taxon 'phytophthora'
@@ -551,21 +516,21 @@ x &lt;- ncbi_search(taxa = query, limit = 300)</code></pre>
 <pre class="r"><code>nrow(z)</code></pre>
 <pre><code>## [1] 300</code></pre>
 <pre class="r"><code>all.equal(x, z)</code></pre>
-<pre><code>## [1] &quot;Attributes: &lt; Component \&quot;row.names\&quot;: Numeric: lengths (230, 300) differ &gt;&quot;     
-## [2] &quot;Component \&quot;taxon\&quot;: Lengths (230, 300) differ (string compare on first 230)&quot;    
-## [3] &quot;Component \&quot;length\&quot;: Numeric: lengths (230, 300) differ&quot;                        
-## [4] &quot;Component \&quot;gene_desc\&quot;: Lengths (230, 300) differ (string compare on first 230)&quot;
-## [5] &quot;Component \&quot;acc_no\&quot;: Lengths (230, 300) differ (string compare on first 230)&quot;   
+<pre><code>## [1] &quot;Attributes: &lt; Component \&quot;row.names\&quot;: Numeric: lengths (237, 300) differ &gt;&quot;     
+## [2] &quot;Component \&quot;taxon\&quot;: Lengths (237, 300) differ (string compare on first 237)&quot;    
+## [3] &quot;Component \&quot;length\&quot;: Numeric: lengths (237, 300) differ&quot;                        
+## [4] &quot;Component \&quot;gene_desc\&quot;: Lengths (237, 300) differ (string compare on first 237)&quot;
+## [5] &quot;Component \&quot;acc_no\&quot;: Lengths (237, 300) differ (string compare on first 237)&quot;   
 ## [6] &quot;Component \&quot;acc_no\&quot;: 155 string mismatches&quot;                                     
-## [7] &quot;Component \&quot;gi_no\&quot;: Numeric: lengths (230, 300) differ&quot;</code></pre>
-<p>There seems to be a bug in the old <code>ncbi_search</code>. When there is an accession number prefix other than those that are removed, only the prefix is retured. <code>ncbi_search2</code> does not have this bug.</p>
-<pre class="r"><code>x$acc_no[70:80]</code></pre>
-<pre><code>##  [1] &quot;KF606717&quot; &quot;KF606716&quot; &quot;KF606715&quot; &quot;KF606714&quot; &quot;KF606713&quot; &quot;KF606712&quot;
+## [7] &quot;Component \&quot;gi_no\&quot;: Numeric: lengths (237, 300) differ&quot;</code></pre>
+<p>There seems to be a bug in the old <code>ncbi_search</code>. When there is an accession number prefix other than those that are removed, only the prefix is returned. <code>ncbi_search2</code> does not have this bug.</p>
+<pre class="r"><code>x$acc_no[80:90]</code></pre>
+<pre><code>##  [1] &quot;KF606714&quot; &quot;KF606713&quot; &quot;KF606712&quot; &quot;NW&quot;       &quot;NW&quot;       &quot;NW&quot;      
 ##  [7] &quot;NW&quot;       &quot;NW&quot;       &quot;NW&quot;       &quot;NW&quot;       &quot;NW&quot;</code></pre>
-<pre class="r"><code>y$acc_no[70:80]</code></pre>
-<pre><code>##  [1] &quot;KF606717&quot;  &quot;KF606716&quot;  &quot;KF606715&quot;  &quot;KF606714&quot;  &quot;KF606713&quot; 
-##  [6] &quot;KF606712&quot;  &quot;008649692&quot; &quot;008649691&quot; &quot;008649690&quot; &quot;008649689&quot;
-## [11] &quot;008649688&quot;</code></pre>
+<pre class="r"><code>y$acc_no[80:90]</code></pre>
+<pre><code>##  [1] &quot;KF606714&quot;  &quot;KF606713&quot;  &quot;KF606712&quot;  &quot;008649692&quot; &quot;008649691&quot;
+##  [6] &quot;008649690&quot; &quot;008649689&quot; &quot;008649688&quot; &quot;008649687&quot; &quot;008649686&quot;
+## [11] &quot;008649685&quot;</code></pre>
 </div>
 </div>
 <div id="other-changes" class="section level3">
@@ -619,7 +584,7 @@ x &lt;- ncbi_search(taxa = query, limit = 50)</code></pre>
 </div>
 <div id="implementation-of-getrelated-option" class="section level4">
 <h4>Implementation of <code>getrelated</code> option</h4>
-<p>In the curent <code>ncbi_search</code> the <code>getrelated</code> option seems to work by extracting the genus name of a latin binomial name (it assumes the input is a species). I modified it to find its parent using <code>classification(x, db = &quot; ncbi&quot;)</code> if a taxon uid is provided instead of a name. This means that the <code>getrelated</code> option should now work at any taxonomic level. Since the <code>taxa</code> argument is converted to a uid, this change also means that the <code>getrelated</code> option will work wether an uid or a taxon name is given. This will not work for taxa that are not in genbank if no filtering is used, but it is useful when used with entrez filtering:</p>
+<p>In the current <code>ncbi_search</code> the <code>getrelated</code> option seems to work by extracting the genus name of a Latin binomial name (it assumes the input is a species). I modified it to find its parent using <code>classification(x, db = &quot; ncbi&quot;)</code> if a taxon uid is provided instead of a name. This means that the <code>getrelated</code> option should now work at any taxonomic level. Since the <code>taxa</code> argument is converted to a uid, this change also means that the <code>getrelated</code> option will work whether an uid or a taxon name is given. This will not work for taxa that are not in genbank if no filtering is used, but it is useful when used with entrez filtering:</p>
 <pre class="r"><code>query &lt;- c(&quot;Olpidiopsidales&quot;)
 x &lt;- ncbi_search(taxa = query, limit = 5, getrelated = TRUE)</code></pre>
 <pre><code>## Working on Olpidiopsidales...
@@ -671,7 +636,7 @@ x &lt;- ncbi_search(taxa = query, limit = 5, getrelated = TRUE)</code></pre>
 ## 3 KM061710 686483810
 ## 4 KM061707 686483807
 ## 5 KM061706 686483806</code></pre>
-<p>If a taxon name given has no uid and is a species binomial, the original implemenation of <code>getrelated</code> is used.</p>
+<p>If a taxon name given has no uid and is a species binomial, the original implementation of <code>getrelated</code> is used.</p>
 <pre class="r"><code>query &lt;- c(&quot;Enhydrus grayii&quot;)
 x &lt;- ncbi_search(taxa = query, limit = 10, getrelated =  TRUE)</code></pre>
 <pre><code>## Working on Enhydrus grayii...

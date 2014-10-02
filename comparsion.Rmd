@@ -8,12 +8,12 @@ output: html_document
 ### Updated code:
 
 ```{r}
-#' Search for gene sequences available for a species from NCBI.
+#' Search for gene sequences available for taxa from NCBI.
 #'
 #' @import XML httr stringr data.table
 #' @template ncbi
-#' @param id (character) Taxonomic id to search for. Not compatible with argument \code{taxa}.
-#' @param limit Number of sequences to search for and return. Max of 10,000.
+#' @param id (\code{character}) Taxonomic id to search for. Not compatible with argument \code{taxa}.
+#' @param limit (\code{numeric}) Number of sequences to search for and return. Max of 10,000.
 #'    If you search for 6000 records, and only 5000 are found, you will of course
 #'    only get 5000 back.
 #' @param entrez_query (\code{character}; length 1) An Entrez-format query to filter results with.
@@ -68,7 +68,7 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
   # Function to search for sequences with esearch --------------------------------------------------
   search_for_sequences <- function(id) {
     if (is.na(id)) return(NULL)
-    # Contruct search query  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+    # Construct search query  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
     query_term <- paste0("xXarbitraryXx[porgn:__txid", id, "] AND ", seqrange, " [SLEN]")
     if (!is.null(entrez_query)) query_term <- paste(query_term, entrez_query, sep = " AND ")
     query <- list(db = "nuccore", retmax = limit, term = query_term)
@@ -83,7 +83,7 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
       return(xpathSApply(esearch_result, "//IdList//Id", xmlValue)) # a list of sequence ids
     }
   }
-
+  
   # Function to parse results from http query ------------------------------------------------------
   parseres <- function(x){
     outsum <- xpathApply(content(x, as="parsed"), "//eSummaryResult")[[1]]
@@ -91,8 +91,9 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
     predicted <- as.character(sapply(getNodeSet(outsum, "//Item"), xmlValue)[str_detect(names, "Caption")]) #  get access numbers
     has_access_prefix <- grepl("_", predicted)
     access_prefix <- unlist(Map(function(x, y) ifelse(x, strsplit(y, "_")[[1]][[1]], NA),
-                         has_access_prefix, predicted))
+                                has_access_prefix, predicted))
     predicted[has_access_prefix] <- vapply(strsplit(predicted[has_access_prefix], "_"), `[[`, character(1), 2)
+
     length_ <- as.numeric(sapply(getNodeSet(outsum, "//Item"), xmlValue)[str_detect(names, "Length")]) # gets seq lengths
     gis <- as.numeric(sapply(getNodeSet(outsum, "//Item"), xmlValue)[str_detect(names, "Gi")]) # gets GI numbers
     spnames <- sapply(getNodeSet(outsum, "//Item"), xmlValue)[str_detect(names, "Title")] # gets seq lengths # get spp names
@@ -176,11 +177,11 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
     names(df) <- c("taxon","length","gene_desc","acc_no","gi_no")
     return(df)
   }
- 
+  
   # Constants --------------------------------------------------------------------------------------
   url_esearch <- "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
   url_esummary <- "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-
+  
   # Argument validation ----------------------------------------------------------------------------
   if (sum(c(is.null(taxa), is.null(id))) != 1) {
     stop("Either taxa or id must be specified, but not both")
@@ -195,7 +196,7 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
     class(id) <- "uid"
     names(id) <- id
   }
-
+  
   # look up sequences for taxa ids ----------------------------------------------------------------- 
   foo_safe <- plyr::failwith(NULL, foo)
   if (length(id) == 1) {
@@ -204,6 +205,7 @@ ncbi_search2 <- function(taxa = NULL, id = NULL, seqrange="1:3000", getrelated=F
     lapply(id, foo_safe)
   }
 }
+
 library(taxize)
 environment(ncbi_search2) <- asNamespace("taxize")
 ```
@@ -238,7 +240,7 @@ all.equal(x, y)
 
 #### No results
 
-The two functions differ in how they handle no results or invalid taxon names. ncbi_search2 returns a 0-row dataframe if no sequences are found. This allows for the results of sucessful and unsucessful searches to be `rbind`ed together without further modifications.
+The two functions differ in how they handle no results or invalid taxon names. ncbi_search2 returns a 0-row dataframe if no sequences are found. This allows for the results of successful and unsuccessful searches to be `rbind`ed together without further modifications.
 
 ```{r}
 query <- c("pythium", "this_is_not_a_valid_taxon", "phytophthora")
@@ -259,11 +261,8 @@ It works the same besides that.
 
 ```{r}
 query <- c("pythium", "phytophthora")
-x <- ncbi_search(id = as.character(1:3), limit = 3)
+x <- ncbi_search2(id = 1:3, limit = 3)
 x
-y <- ncbi_search2(id = 1:3, limit = 3)
-y
-all.equal(x, y)
 ```
 
 ### New functionality
@@ -288,19 +287,18 @@ x <- ncbi_search(taxa = query, limit = 300)
 nrow(x)
 y <- ncbi_search2(taxa = query, limit = 300)
 nrow(y)
-all.equal(x, y)
 z <- ncbi_search2(taxa = query, limit = 300, hypothetical = TRUE)
 nrow(z)
 all.equal(x, z)
 ```
 
 There seems to be a bug in the old `ncbi_search`. 
-When there is an accession number prefix other than those that are removed, only the prefix is retured. 
+When there is an accession number prefix other than those that are removed, only the prefix is returned. 
 `ncbi_search2` does not have this bug.
 
 ```{r}
-x$acc_no[70:80]
-y$acc_no[70:80]
+x$acc_no[80:90]
+y$acc_no[80:90]
 ```
 
 ### Other changes
@@ -321,10 +319,10 @@ isTRUE(all.equal(x, y))
 
 #### Implementation of `getrelated` option
 
-In the curent `ncbi_search` the `getrelated` option seems to work by extracting the genus name of a latin binomial name (it assumes the input is a species).
+In the current `ncbi_search` the `getrelated` option seems to work by extracting the genus name of a Latin binomial name (it assumes the input is a species).
 I modified it to find its parent using `classification(x, db = " ncbi")`  if a taxon uid is provided instead of a name. 
 This means that the `getrelated` option should now work at any taxonomic level.
-Since the `taxa` argument is converted to a uid, this change also means that the `getrelated` option will work wether an uid or a taxon name is given. 
+Since the `taxa` argument is converted to a uid, this change also means that the `getrelated` option will work whether an uid or a taxon name is given. 
 This will not work for taxa that are not in genbank if no filtering is used, but it is useful when used with entrez filtering:
 
 ```{r}
@@ -335,7 +333,7 @@ y <- ncbi_search2(taxa = query, limit = 5, getrelated = TRUE, entrez_query = "18
 y
 ```
 
-If a taxon name given has no uid and is a species binomial, the original implemenation of `getrelated` is used. 
+If a taxon name given has no uid and is a species binomial, the original implementation of `getrelated` is used. 
 
 ```{r}
 query <- c("Enhydrus grayii")
